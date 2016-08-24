@@ -80,10 +80,15 @@ public abstract class OctopusBuildProcess implements BuildProcess {
     private void startOcto(final OctopusCommandBuilder command) throws RunBuildException {
         String[] userVisibleCommand = command.buildMaskedCommand();
         String[] realCommand = command.buildCommand();
+        Boolean usingExe = runningBuild.getAgentConfiguration().getSystemInfo().isWindows();
 
         logger = runningBuild.getBuildLogger();
         logger.activityStarted("Octopus Deploy", DefaultMessagesInfo.BLOCK_TYPE_INDENTATION);
-        logger.message("Running command:   octo.exe " + StringUtils.arrayToDelimitedString(userVisibleCommand, " "));
+        if(usingExe) {
+            logger.message("Running command:   octo.exe " + StringUtils.arrayToDelimitedString(userVisibleCommand, " "));
+        } else {
+            logger.message("Running command:   dotnet Octo.dll " + StringUtils.arrayToDelimitedString(userVisibleCommand, " "));
+        }
         logger.progressMessage(getLogMessage());
 
         try {
@@ -92,7 +97,13 @@ public abstract class OctopusBuildProcess implements BuildProcess {
             String octopusVersion = getSelectedOctopusVersion();
 
             ArrayList<String> arguments = new ArrayList<String>();
-            arguments.add(new File(extractedTo, octopusVersion + "\\octo.exe").getAbsolutePath());
+            if(usingExe) {
+                arguments.add(new File(extractedTo, octopusVersion + "/octo.exe").getAbsolutePath());
+            }else{
+                arguments.add("dotnet");
+                String dllPath = new File(extractedTo, octopusVersion + "/Core/Octo.dll").getAbsolutePath();
+                arguments.add(dllPath);
+            }
             arguments.addAll(Arrays.asList(realCommand));
 
             process = runtime.exec(arguments.toArray(new String[arguments.size()]), null, context.getWorkingDirectory());
