@@ -58,6 +58,14 @@
   </td>
 </tr>
 <tr>
+  <th>Limit deploys to branches matching:<l:star/></th>
+  <td>
+    <props:textProperty name="${keys.limitToBranchesMatchingKey}" className="longField"/>
+    <span class="error" id="error_${keys.limitToBranchesMatchingKey}"></span>
+    <span class="smallNote">Enter a regex to filter to match for deploys</span>
+  </td>
+</tr>
+<tr>
   <th>Release number:</th>
   <td>
     <props:textProperty name="${keys.releaseNumberKey}" className="longField"/>

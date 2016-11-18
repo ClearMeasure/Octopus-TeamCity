@@ -39,6 +39,7 @@ public abstract class OctopusBuildProcess implements BuildProcess {
     private OutputReaderThread standardOutput;
     private boolean isFinished;
     private BuildProgressLogger logger;
+    private boolean filterSkip;
 
     protected OctopusBuildProcess(@NotNull AgentRunningBuild runningBuild, @NotNull BuildRunnerContext context) {
         this.runningBuild = runningBuild;
@@ -48,6 +49,7 @@ public abstract class OctopusBuildProcess implements BuildProcess {
     public void start() throws RunBuildException {
         extractOctoExe();
 
+        
         OctopusCommandBuilder arguments = createCommand();
         startOcto(arguments);
     }
@@ -82,8 +84,31 @@ public abstract class OctopusBuildProcess implements BuildProcess {
         String[] realCommand = command.buildCommand();
 
         logger = runningBuild.getBuildLogger();
+
+        String filterRegex = getContext().getRunnerParameters().get(OctopusConstants.Instance.getLimitToBranchesMatchingKey());
+
+        logger.message("Checking to see if this branch matches regex " + filterRegex);
+        if(filterRegex != null && filterRegex != "")
+        {
+            String branch = getContext().getConfigParameters().get("vcsroot.branch");
+            logger.message("Checking branch " + branch);
+            if(!branch.matches(filterRegex))
+            {
+                logger.message("Branch doesn't satisfy filter. Exiting early.");
+                filterSkip = true;
+                return;
+            }
+            logger.message("Branch satisfies filter. Continuing.");
+            filterSkip = false;
+        }
+        else
+        {
+            logger.message("No filter defined. Continuing.");
+        }
+
         logger.activityStarted("Octopus Deploy", DefaultMessagesInfo.BLOCK_TYPE_INDENTATION);
         logger.message("Running command:   octo.exe " + StringUtils.arrayToDelimitedString(userVisibleCommand, " "));
+        
         logger.progressMessage(getLogMessage());
 
         try {
@@ -152,6 +177,9 @@ public abstract class OctopusBuildProcess implements BuildProcess {
 
     @NotNull
     public BuildFinishedStatus waitFor() throws RunBuildException {
+        if(filterSkip)
+            return BuildFinishedStatus.FINISHED_SUCCESS;
+
         int exitCode;
 
         try {
